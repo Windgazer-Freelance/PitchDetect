@@ -44,7 +44,6 @@ var pitchDetect = (function( AudioContext ) {
 		audioContext = new AudioContext();
 		// corresponds to a 5kHz signal
 		MAX_SIZE = Math.max(4,Math.floor(audioContext.sampleRate/5000));
-		fetchAudoFile();
 
 		canvasElem = document.getElementById( "output" );
 		DEBUGCANVAS = document.getElementById( "waveform" );
@@ -59,18 +58,6 @@ var pitchDetect = (function( AudioContext ) {
 		detuneAmount = document.getElementById( "detune_amt" );
 
 	} );
-
-	function fetchAudoFile() {
-		var request = new XMLHttpRequest();
-		request.open("GET", "../sounds/whistling3.ogg", true);
-		request.responseType = "arraybuffer";
-		request.onload = function() {
-		audioContext.decodeAudioData( request.response, function(buffer) {
-				theBuffer = buffer;
-			} );
-		};
-		request.send();
-	}
 
 	function error() {
 	    window.alert('Stream generation failed.');
