@@ -31,8 +31,7 @@ var pitchDetect = (function( AudioContext ) {
 	var theBuffer = null;
 	var DEBUGCANVAS = null;
 	var mediaStreamSource = null;
-	var detectorElem,
-		canvasElem,
+	var canvasElem,
 		waveCanvas,
 		pitchElem,
 		noteElem,
@@ -41,13 +40,12 @@ var pitchDetect = (function( AudioContext ) {
 		isLiveInput,
 		MAX_SIZE;
 
-	window.onload = function() {
+	window.addEventListener("load", function() {
 		audioContext = new AudioContext();
 		// corresponds to a 5kHz signal
 		MAX_SIZE = Math.max(4,Math.floor(audioContext.sampleRate/5000));
 		fetchAudoFile();
 
-		detectorElem = document.getElementById( "detector" );
 		canvasElem = document.getElementById( "output" );
 		DEBUGCANVAS = document.getElementById( "waveform" );
 		if (DEBUGCANVAS) {
@@ -60,39 +58,7 @@ var pitchDetect = (function( AudioContext ) {
 		detuneElem = document.getElementById( "detune" );
 		detuneAmount = document.getElementById( "detune_amt" );
 
-		detectorElem.ondragenter = function () {
-			this.classList.add("droptarget");
-			return false; };
-		detectorElem.ondragleave = function () {
-			this.classList.remove("droptarget");
-			return false;
-		};
-		detectorElem.ondrop = function (e) {
-	  		this.classList.remove("droptarget");
-	  		e.preventDefault();
-			theBuffer = null;
-
-		  	var reader = new FileReader();
-		  	reader.onload = function (event) {
-		  		audioContext.decodeAudioData(
-					event.target.result,
-					function(buffer) {
-		    			theBuffer = buffer;
-					}, function(){
-						window.alert("error loading!");
-					}
-				);
-		  	};
-		  	reader.onerror = function (event) {
-		  		window.alert("Error: " + reader.error );
-			};
-		  	reader.readAsArrayBuffer(e.dataTransfer.files[0]);
-		  	return false;
-		};
-
-
-
-	};
+	} );
 
 	function fetchAudoFile() {
 		var request = new XMLHttpRequest();
@@ -300,13 +266,13 @@ var pitchDetect = (function( AudioContext ) {
 		}
 
 	 	if (ac == -1) {
-	 		detectorElem.className = "vague";
+			pitchElem.parentNode.parentNode.className = "vague";
 		 	pitchElem.innerText = "--";
 			noteElem.innerText = "-";
 			detuneElem.className = "";
 			detuneAmount.innerText = "--";
 	 	} else {
-		 	detectorElem.className = "confident";
+			pitchElem.parentNode.parentNode.className = "confident";
 		 	pitch = ac;
 		 	pitchElem.innerText = Math.round( pitch ) ;
 		 	var note =  noteFromPitch( pitch );
@@ -351,6 +317,21 @@ var pitchDetect = (function( AudioContext ) {
 		setPlaying: function( sourceName ) {
 			document.body.className = document.body.className.replace(/isPlaying\w+/, "");
 			document.body.className += " isPlaying" + sourceName;
+		},
+		setBuffer: function( newBuffer ) {
+			theBuffer = newBuffer;
+		},
+		decode: function( data ) {
+			var self = this;
+			audioContext.decodeAudioData(
+				data,
+                function(buffer) {
+                    self.setBuffer(buffer);
+                },
+                function() {
+                    window.alert("error loading!");
+                }
+            );
 		},
 
 		toggleOscillator: function () {
