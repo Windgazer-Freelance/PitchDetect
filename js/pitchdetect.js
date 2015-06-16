@@ -24,8 +24,8 @@ SOFTWARE.
 var pitchDetect = (function( AudioContext ) {
 	"use strict";
 
-	var audioContext = null;
-	var isPlaying = false;
+	var audioContext = null,
+		isPlaying = false;
 	var sourceNode = null;
 	var analyser = null;
 	var theBuffer = null;
@@ -42,6 +42,8 @@ var pitchDetect = (function( AudioContext ) {
 
 	window.addEventListener("load", function() {
 		audioContext = new AudioContext();
+		analyser = audioContext.createAnalyser();
+	    analyser.fftSize = 2048;
 		// corresponds to a 5kHz signal
 		MAX_SIZE = Math.max(4,Math.floor(audioContext.sampleRate/5000));
 
@@ -63,6 +65,17 @@ var pitchDetect = (function( AudioContext ) {
 	    window.alert('Stream generation failed.');
 	}
 
+	function connectAnalyser( source ) {
+		if ( !!analyser.oldSource ) {
+			analyser.oldSource.disconnect();
+			analyser.oldSource = null;
+		}
+		source.connect( analyser );
+		analyser.oldSource = source;
+		analyser.connect( audioContext.destination );
+		return analyser;
+	}
+
 	function getUserMedia(dictionary, callback) {
 	    try {
 	        navigator.getUserMedia =
@@ -78,11 +91,11 @@ var pitchDetect = (function( AudioContext ) {
 	function gotStream(stream) {
 	    // Create an AudioNode from the stream.
 	    mediaStreamSource = audioContext.createMediaStreamSource(stream);
+		sourceNode = mediaStreamSource;
+		isLiveInput = true;
 
-	    // Connect it to the destination.
-	    analyser = audioContext.createAnalyser();
-	    analyser.fftSize = 2048;
-	    mediaStreamSource.connect( analyser );
+	    // Connect it to the destination. But not to output...
+		connectAnalyser( mediaStreamSource ).disconnect();
 	    updatePitch();
 	}
 
@@ -287,11 +300,15 @@ var pitchDetect = (function( AudioContext ) {
 	PitchDetect.prototype = {
 
 		stop: function() {
-			if (isPlaying) {
+			if (isPlaying||isLiveInput) {
 		        //stop playing and return
-		        sourceNode.stop( 0 );
+		        if (isPlaying) {
+					sourceNode.stop( 0 );
+				}
+				sourceNode.disconnect();
 		        sourceNode = null;
-		        analyser = null;
+				analyser.oldSource = null;
+				isLiveInput = false;
 		        isPlaying = false;
 				if (!window.cancelAnimationFrame)
 					{window.cancelAnimationFrame = window.webkitCancelAnimationFrame;}
@@ -327,13 +344,9 @@ var pitchDetect = (function( AudioContext ) {
 			}
 		    sourceNode = audioContext.createOscillator();
 
-		    analyser = audioContext.createAnalyser();
-		    analyser.fftSize = 2048;
-		    sourceNode.connect( analyser );
-		    analyser.connect( audioContext.destination );
+			connectAnalyser( sourceNode );
 		    sourceNode.start(0);
 		    isPlaying = true;
-		    isLiveInput = false;
 		    updatePitch();
 			this.setPlaying("Oscillator");
 		},
@@ -367,13 +380,9 @@ var pitchDetect = (function( AudioContext ) {
 		    sourceNode.buffer = theBuffer;
 		    sourceNode.loop = true;
 
-		    analyser = audioContext.createAnalyser();
-		    analyser.fftSize = 2048;
-		    sourceNode.connect( analyser );
-		    analyser.connect( audioContext.destination );
+			connectAnalyser( sourceNode );
 		    sourceNode.start( 0 );
 		    isPlaying = true;
-		    isLiveInput = false;
 		    updatePitch();
 			this.setPlaying("Playback");
 		}
