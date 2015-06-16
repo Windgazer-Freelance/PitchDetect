@@ -339,9 +339,14 @@ var pitchDetect = (function( AudioContext ) {
 				if (!window.cancelAnimationFrame)
 					{window.cancelAnimationFrame = window.webkitCancelAnimationFrame;}
 		        window.cancelAnimationFrame( rafID );
+				this.setPlaying("Nothing");
 		        return true;
 		    }
 			return false;
+		},
+		setPlaying: function( sourceName ) {
+			document.body.className = document.body.className.replace(/isPlaying\w+/, "");
+			document.body.className += " isPlaying" + sourceName;
 		},
 
 		toggleOscillator: function () {
@@ -358,6 +363,7 @@ var pitchDetect = (function( AudioContext ) {
 		    isPlaying = true;
 		    isLiveInput = false;
 		    updatePitch();
+			this.setPlaying("Oscillator");
 		},
 
 		toggleLiveInput: function () {
@@ -375,7 +381,9 @@ var pitchDetect = (function( AudioContext ) {
 		                },
 		                "optional": []
 		            },
-		        }, gotStream);
+		        }, gotStream
+			);
+			this.setPlaying("LiveInput");
 		},
 
 		togglePlayback: function () {
@@ -395,6 +403,7 @@ var pitchDetect = (function( AudioContext ) {
 		    isPlaying = true;
 		    isLiveInput = false;
 		    updatePitch();
+			this.setPlaying("Playback");
 		}
 
 	};
