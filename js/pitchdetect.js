@@ -328,8 +328,9 @@ var pitchDetect = (function( AudioContext ) {
 	function PitchDetect() {}
 
 	PitchDetect.prototype = {
-		toggleOscillator: function () {
-		    if (isPlaying) {
+
+		stop: function() {
+			if (isPlaying) {
 		        //stop playing and return
 		        sourceNode.stop( 0 );
 		        sourceNode = null;
@@ -338,8 +339,15 @@ var pitchDetect = (function( AudioContext ) {
 				if (!window.cancelAnimationFrame)
 					{window.cancelAnimationFrame = window.webkitCancelAnimationFrame;}
 		        window.cancelAnimationFrame( rafID );
-		        return "play oscillator";
+		        return true;
 		    }
+			return false;
+		},
+
+		toggleOscillator: function () {
+			if ( this.stop() ) {
+				return false;
+			}
 		    sourceNode = audioContext.createOscillator();
 
 		    analyser = audioContext.createAnalyser();
@@ -350,21 +358,12 @@ var pitchDetect = (function( AudioContext ) {
 		    isPlaying = true;
 		    isLiveInput = false;
 		    updatePitch();
-
-		    return "stop";
 		},
 
 		toggleLiveInput: function () {
-		    if (isPlaying) {
-		        //stop playing and return
-		        sourceNode.stop( 0 );
-		        sourceNode = null;
-		        analyser = null;
-		        isPlaying = false;
-				if (!window.cancelAnimationFrame)
-					{window.cancelAnimationFrame = window.webkitCancelAnimationFrame;}
-		        window.cancelAnimationFrame( rafID );
-		    }
+			if ( this.stop() ) {
+				return false;
+			}
 		    getUserMedia(
 		    	{
 		            "audio": {
@@ -380,17 +379,9 @@ var pitchDetect = (function( AudioContext ) {
 		},
 
 		togglePlayback: function () {
-		    if (isPlaying) {
-		        //stop playing and return
-		        sourceNode.stop( 0 );
-		        sourceNode = null;
-		        analyser = null;
-		        isPlaying = false;
-				if (!window.cancelAnimationFrame)
-					{window.cancelAnimationFrame = window.webkitCancelAnimationFrame;}
-		        window.cancelAnimationFrame( rafID );
-		        return "start";
-		    }
+			if ( this.stop() ) {
+				return false;
+			}
 
 		    sourceNode = audioContext.createBufferSource();
 		    sourceNode.buffer = theBuffer;
@@ -404,9 +395,8 @@ var pitchDetect = (function( AudioContext ) {
 		    isPlaying = true;
 		    isLiveInput = false;
 		    updatePitch();
-
-		    return "stop";
 		}
+
 	};
 
 	if ( typeof define === "function" && define.amd ) { //jshint ignore:line
