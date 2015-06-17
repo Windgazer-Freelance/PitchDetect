@@ -1,6 +1,40 @@
 /* global pitchDetect, console*/
-(function() {
+( function( requestAnimationFrame ) {
     "use strict";
+
+    var DEBUGCANVAS = null,
+        waveCanvas,
+        rafID
+    ;
+
+    function redrawCanvas() {
+        var buf;
+        if (pitchDetect.isPlaying()) {
+            buf = pitchDetect.getAnalysedBuffer();
+            waveCanvas.clearRect(0,0,512,256);
+            waveCanvas.strokeStyle = "red";
+            waveCanvas.beginPath();
+            waveCanvas.moveTo(0,0);
+            waveCanvas.lineTo(0,256);
+            waveCanvas.moveTo(128,0);
+            waveCanvas.lineTo(128,256);
+            waveCanvas.moveTo(256,0);
+            waveCanvas.lineTo(256,256);
+            waveCanvas.moveTo(384,0);
+            waveCanvas.lineTo(384,256);
+            waveCanvas.moveTo(512,0);
+            waveCanvas.lineTo(512,256);
+            waveCanvas.stroke();
+            waveCanvas.strokeStyle = "black";
+            waveCanvas.beginPath();
+            waveCanvas.moveTo(0,buf[0]);
+            for (var i=1;i<512;i++) {
+                waveCanvas.lineTo(i,128+(buf[i]*128));
+            }
+            waveCanvas.stroke();
+        }
+		rafID = requestAnimationFrame( redrawCanvas );
+    }
 
     function fetchAudoFile() {
 		var request = new XMLHttpRequest();
@@ -19,6 +53,7 @@
             i
         ;
 
+        //Fetch demo whistling
         fetchAudoFile();
 
         detectorElem = document.getElementById("detector");
@@ -29,6 +64,7 @@
             });
         }
 
+        //Setup drag/drop handling for dropping in a custom audio file.
         detectorElem.addEventListener("dragenter", function(e) {
             this.classList.add("droptarget");
         });
@@ -55,6 +91,18 @@
             }
         });
 
-    });
+        //Check for existence of debugging canvas (to display frequency wave)
+        DEBUGCANVAS = document.getElementById( "waveform" );
+		if (DEBUGCANVAS) {
+			waveCanvas = DEBUGCANVAS.getContext("2d");
+			waveCanvas.strokeStyle = "black";
+			waveCanvas.lineWidth = 1;
+            redrawCanvas()
+		}
 
-}());
+    });
+}(
+    window.requestAnimationFrame ||
+    window.webkitRequestAnimationFrame ||
+    window.mozRequestAnimationFrame
+) );

@@ -21,7 +21,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-var pitchDetect = (function( AudioContext ) {
+var pitchDetect = (function( AudioContext, requestAnimationFrame ) {
 	"use strict";
 
 	var audioContext = null,
@@ -29,10 +29,8 @@ var pitchDetect = (function( AudioContext ) {
 	var sourceNode = null;
 	var analyser = null;
 	var theBuffer = null;
-	var DEBUGCANVAS = null;
 	var mediaStreamSource = null;
 	var canvasElem,
-		waveCanvas,
 		pitchElem,
 		noteElem,
 		detuneElem,
@@ -48,12 +46,6 @@ var pitchDetect = (function( AudioContext ) {
 		MAX_SIZE = Math.max(4,Math.floor(audioContext.sampleRate/5000));
 
 		canvasElem = document.getElementById( "output" );
-		DEBUGCANVAS = document.getElementById( "waveform" );
-		if (DEBUGCANVAS) {
-			waveCanvas = DEBUGCANVAS.getContext("2d");
-			waveCanvas.strokeStyle = "black";
-			waveCanvas.lineWidth = 1;
-		}
 		pitchElem = document.getElementById( "pitch" );
 		noteElem = document.getElementById( "note" );
 		detuneElem = document.getElementById( "detune" );
@@ -241,30 +233,6 @@ var pitchDetect = (function( AudioContext ) {
 		var pitch;
 		// TODO: Paint confidence meter on canvasElem here.
 
-		if (DEBUGCANVAS) {  // This draws the current waveform, useful for debugging
-			waveCanvas.clearRect(0,0,512,256);
-			waveCanvas.strokeStyle = "red";
-			waveCanvas.beginPath();
-			waveCanvas.moveTo(0,0);
-			waveCanvas.lineTo(0,256);
-			waveCanvas.moveTo(128,0);
-			waveCanvas.lineTo(128,256);
-			waveCanvas.moveTo(256,0);
-			waveCanvas.lineTo(256,256);
-			waveCanvas.moveTo(384,0);
-			waveCanvas.lineTo(384,256);
-			waveCanvas.moveTo(512,0);
-			waveCanvas.lineTo(512,256);
-			waveCanvas.stroke();
-			waveCanvas.strokeStyle = "black";
-			waveCanvas.beginPath();
-			waveCanvas.moveTo(0,buf[0]);
-			for (var i=1;i<512;i++) {
-				waveCanvas.lineTo(i,128+(buf[i]*128));
-			}
-			waveCanvas.stroke();
-		}
-
 	 	if (ac == -1) {
 			pitchElem.parentNode.parentNode.className = "vague";
 		 	pitchElem.innerText = "--";
@@ -290,9 +258,7 @@ var pitchDetect = (function( AudioContext ) {
 			}
 		}
 
-		if (!window.requestAnimationFrame)
-			{window.requestAnimationFrame = window.webkitRequestAnimationFrame;}
-		rafID = window.requestAnimationFrame( updatePitch );
+		rafID = requestAnimationFrame( updatePitch );
 	}
 
 	function PitchDetect() {}
@@ -336,6 +302,15 @@ var pitchDetect = (function( AudioContext ) {
                     window.alert("error loading!");
                 }
             );
+		},
+		getAnalyser: function( ) {
+			return analyser;
+		},
+		getAnalysedBuffer: function() {
+			return buf;
+		},
+		isPlaying: function() {
+			return isPlaying || isLiveInput;
 		},
 
 		toggleOscillator: function () {
@@ -396,4 +371,10 @@ var pitchDetect = (function( AudioContext ) {
 	}
 	return new PitchDetect();
 
-}(window.AudioContext || window.webkitAudioContext));
+}(
+	window.AudioContext ||
+	window.webkitAudioContext,
+	window.requestAnimationFrame ||
+    window.webkitRequestAnimationFrame ||
+    window.mozRequestAnimationFrame
+));
