@@ -29,21 +29,6 @@ var PitchDetect = (function( requestAnimationFrame ) {
 
 	var noteStrings = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
-	function noteFromPitch( frequency ) {
-		var noteNum = 12 * (Math.log( frequency / 440 )/Math.log(2) );
-		return Math.round( noteNum ) + 69;
-	}
-
-	function frequencyFromNoteNumber( note ) {
-		return 440 * Math.pow(2,(note-69)/12);
-	}
-
-	function centsOffFromPitch( frequency, note ) {
-		return Math.floor(
-			1200 * Math.log( frequency / frequencyFromNoteNumber( note ))/Math.log(2)
-		);
-	}
-
 	// this is a float version of the algorithm below - but it's not currently used.
 	/*
 	function autoCorrelateFloat( buf, sampleRate ) {
@@ -160,7 +145,10 @@ var PitchDetect = (function( requestAnimationFrame ) {
 	function Pitch( frequency ) {
 		this.frequency = frequency;
 		this.noteNum = Math.round( 1200 * (Math.log( frequency / 440 )/Math.log(2) )) / 100;
-		console.log( this.frequency, this.noteNum );
+		this.baseFrequency = Pitch.frequencyFromNoteNumber( Math.round(this.noteNum) );
+		this.offset = Math.floor(
+			1200 * Math.log( this.frequency / this.baseFrequency)/Math.log(2)
+		);
 	}
 
 	Pitch.prototype = {
@@ -168,19 +156,22 @@ var PitchDetect = (function( requestAnimationFrame ) {
 			return this.frequency;
 		},
 		getOffset: function() {
-			return centsOffFromPitch( this.frequency, this.noteNum + 69 );
+			return this.offset;
 		},
 		getNote: function() {
-			return this.nodeNum;
+			return this.noteNum;
 		},
 		toInt: function() {
 			return Math.round(this.noteNum);
 		},
 		toString: function() {
-			var i = (this.toInt() + 69)%12;
-			console.log( "tostring", i );
+			var i = (this.toInt() + 9) % 12;
 			return noteStrings[i];
 		}
+	};
+
+	Pitch.frequencyFromNoteNumber = function ( noteNum ) {
+		return 440 * Math.pow(2,( noteNum )/12);
 	};
 
 	function PitchDetect( context ) {
