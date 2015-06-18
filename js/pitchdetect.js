@@ -27,7 +27,7 @@ var PitchDetect = (function( requestAnimationFrame ) {
 	var tracks = null;
 	var buflen = 1024;
 
-	var noteStrings = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+	var noteStrings = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"];
 
 	// this is a float version of the algorithm below - but it's not currently used.
 	/*
@@ -165,7 +165,7 @@ var PitchDetect = (function( requestAnimationFrame ) {
 			return Math.round(this.noteNum);
 		},
 		toString: function() {
-			var i = (this.toInt() + 9) % 12;
+			var i = this.toInt() % 12;
 			return noteStrings[i];
 		}
 	};
