@@ -21,80 +21,11 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-var pitchDetect = (function( AudioContext, requestAnimationFrame ) {
+var PitchDetect = (function( requestAnimationFrame ) {
 	"use strict";
 
-	var audioContext = null,
-		isPlaying = false;
-	var sourceNode = null;
-	var analyser = null;
-	var theBuffer = null;
-	var mediaStreamSource = null;
-	var canvasElem,
-		pitchElem,
-		noteElem,
-		detuneElem,
-		detuneAmount,
-		isLiveInput,
-		MAX_SIZE;
-
-	window.addEventListener("load", function() {
-		audioContext = new AudioContext();
-		analyser = audioContext.createAnalyser();
-	    analyser.fftSize = 2048;
-		// corresponds to a 5kHz signal
-		MAX_SIZE = Math.max(4,Math.floor(audioContext.sampleRate/5000));
-
-		canvasElem = document.getElementById( "output" );
-		pitchElem = document.getElementById( "pitch" );
-		noteElem = document.getElementById( "note" );
-		detuneElem = document.getElementById( "detune" );
-		detuneAmount = document.getElementById( "detune_amt" );
-
-	} );
-
-	function error() {
-	    window.alert('Stream generation failed.');
-	}
-
-	function connectAnalyser( source ) {
-		if ( !!analyser.oldSource ) {
-			analyser.oldSource.disconnect();
-			analyser.oldSource = null;
-		}
-		source.connect( analyser );
-		analyser.oldSource = source;
-		analyser.connect( audioContext.destination );
-		return analyser;
-	}
-
-	function getUserMedia(dictionary, callback) {
-	    try {
-	        navigator.getUserMedia =
-	        	navigator.getUserMedia ||
-	        	navigator.webkitGetUserMedia ||
-	        	navigator.mozGetUserMedia;
-	        navigator.getUserMedia(dictionary, callback, error);
-	    } catch (e) {
-			window.alert('getUserMedia threw exception :' + e);
-	    }
-	}
-
-	function gotStream(stream) {
-	    // Create an AudioNode from the stream.
-	    mediaStreamSource = audioContext.createMediaStreamSource(stream);
-		sourceNode = mediaStreamSource;
-		isLiveInput = true;
-
-	    // Connect it to the destination. But not to output...
-		connectAnalyser( mediaStreamSource ).disconnect();
-	    updatePitch();
-	}
-
-	var rafID = null;
 	var tracks = null;
 	var buflen = 1024;
-	var buf = new Float32Array( buflen );
 
 	var noteStrings = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -226,140 +157,64 @@ var pitchDetect = (function( AudioContext, requestAnimationFrame ) {
 	//	var best_frequency = sampleRate/bestOffset;
 	}
 
-	function updatePitch( time ) {
-		var cycles = [];
-		analyser.getFloatTimeDomainData( buf );
-		var ac = autoCorrelate( buf, audioContext.sampleRate );
-		var pitch;
-		// TODO: Paint confidence meter on canvasElem here.
-
-	 	if (ac == -1) {
-			pitchElem.parentNode.parentNode.className = "vague";
-		 	pitchElem.innerText = "--";
-			noteElem.innerText = "-";
-			detuneElem.className = "";
-			detuneAmount.innerText = "--";
-	 	} else {
-			pitchElem.parentNode.parentNode.className = "confident";
-		 	pitch = ac;
-		 	pitchElem.innerText = Math.round( pitch ) ;
-		 	var note =  noteFromPitch( pitch );
-			noteElem.innerHTML = noteStrings[note%12];
-			var detune = centsOffFromPitch( pitch, note );
-			if (detune === 0 ) {
-				detuneElem.className = "";
-				detuneAmount.innerHTML = "--";
-			} else {
-				if (detune < 0)
-					{detuneElem.className = "flat";}
-				else
-					{detuneElem.className = "sharp";}
-				detuneAmount.innerHTML = Math.abs( detune );
-			}
-		}
-
-		rafID = requestAnimationFrame( updatePitch );
+	function Pitch( frequency ) {
+		this.frequency = frequency;
+		this.noteNum = Math.round( 1200 * (Math.log( frequency / 440 )/Math.log(2) )) / 100;
+		console.log( this.frequency, this.noteNum );
 	}
 
-	function PitchDetect() {}
+	Pitch.prototype = {
+		getFrequency: function() {
+			return this.frequency;
+		},
+		getOffset: function() {
+			return centsOffFromPitch( this.frequency, this.noteNum + 69 );
+		},
+		getNote: function() {
+			return this.nodeNum;
+		},
+		toInt: function() {
+			return Math.round(this.noteNum);
+		},
+		toString: function() {
+			var i = (this.toInt() + 69)%12;
+			console.log( "tostring", i );
+			return noteStrings[i];
+		}
+	};
+
+	function PitchDetect( context ) {
+		this.context = context;
+		this.analyser = context.createAnalyser();
+		this.analyser.fftSize = 2048;
+		// corresponds to a 5kHz signal
+		//this.MAX_SIZE = Math.max(4,Math.floor( context.sampleRate/5000 ));
+		this.buf = new Float32Array( buflen );
+
+	}
 
 	PitchDetect.prototype = {
 
-		stop: function() {
-			if (isPlaying||isLiveInput) {
-		        //stop playing and return
-		        if (isPlaying) {
-					sourceNode.stop( 0 );
-				}
-				sourceNode.disconnect();
-		        sourceNode = null;
-				analyser.oldSource = null;
-				isLiveInput = false;
-		        isPlaying = false;
-				if (!window.cancelAnimationFrame)
-					{window.cancelAnimationFrame = window.webkitCancelAnimationFrame;}
-		        window.cancelAnimationFrame( rafID );
-				this.setPlaying("Nothing");
-		        return true;
-		    }
-			return false;
-		},
-		setPlaying: function( sourceName ) {
-			document.body.className = document.body.className.replace(/isPlaying\w+/, "");
-			document.body.className += " isPlaying" + sourceName;
-		},
-		setBuffer: function( newBuffer ) {
-			theBuffer = newBuffer;
-		},
-		decode: function( data ) {
-			var self = this;
-			audioContext.decodeAudioData(
-				data,
-                function(buffer) {
-                    self.setBuffer(buffer);
-                },
-                function() {
-                    window.alert("error loading!");
-                }
-            );
-		},
 		getAnalyser: function( ) {
-			return analyser;
+			return this.analyser;
 		},
 		getAnalysedBuffer: function() {
-			return buf;
+			return this.buf;
 		},
-		isPlaying: function() {
-			return isPlaying || isLiveInput;
+		autoCorrelate: function() {
+			this.analyser.getFloatTimeDomainData( this.buf );
+			return new Pitch( autoCorrelate( this.buf, this.context.sampleRate ) );
 		},
-
-		toggleOscillator: function () {
-			if ( this.stop() ) {
-				return false;
+		connect: function( source ) {
+			var analyser = this.analyser;
+			if ( !!this.oldSource ) {
+				this.oldSource.disconnect();
+				this.oldSource = null;
 			}
-		    sourceNode = audioContext.createOscillator();
-
-			connectAnalyser( sourceNode );
-		    sourceNode.start(0);
-		    isPlaying = true;
-		    updatePitch();
-			this.setPlaying("Oscillator");
-		},
-
-		toggleLiveInput: function () {
-			if ( this.stop() ) {
-				return false;
-			}
-		    getUserMedia(
-		    	{
-		            "audio": {
-		                "mandatory": {
-		                    "googEchoCancellation": "false",
-		                    "googAutoGainControl": "false",
-		                    "googNoiseSuppression": "false",
-		                    "googHighpassFilter": "false"
-		                },
-		                "optional": []
-		            },
-		        }, gotStream
-			);
-			this.setPlaying("LiveInput");
-		},
-
-		togglePlayback: function () {
-			if ( this.stop() ) {
-				return false;
-			}
-
-		    sourceNode = audioContext.createBufferSource();
-		    sourceNode.buffer = theBuffer;
-		    sourceNode.loop = true;
-
-			connectAnalyser( sourceNode );
-		    sourceNode.start( 0 );
-		    isPlaying = true;
-		    updatePitch();
-			this.setPlaying("Playback");
+			source.connect( analyser );
+			this.oldSource = source;
+			//analyser.connect( this.context.destination );
+			return analyser;
 		}
 
 	};
@@ -369,11 +224,9 @@ var pitchDetect = (function( AudioContext, requestAnimationFrame ) {
 	        return PitchDetect;
 	    });
 	}
-	return new PitchDetect();
+	return PitchDetect;
 
 }(
-	window.AudioContext ||
-	window.webkitAudioContext,
 	window.requestAnimationFrame ||
     window.webkitRequestAnimationFrame ||
     window.mozRequestAnimationFrame
