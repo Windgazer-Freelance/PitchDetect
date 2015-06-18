@@ -24,7 +24,6 @@ SOFTWARE.
 var PitchDetect = (function( requestAnimationFrame ) {
 	"use strict";
 
-	var tracks = null;
 	var buflen = 1024;
 
 	var noteStrings = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"];
@@ -142,6 +141,14 @@ var PitchDetect = (function( requestAnimationFrame ) {
 	//	var best_frequency = sampleRate/bestOffset;
 	}
 
+	/**
+	 * Pitch is an Object that wraps around a frequency and pertains all relevant bits and
+	 * pieces of information. Most useful information is most likely the `toString()`
+	 * method, which returns the pitch as a String.
+	 *
+	 * @param {number} frequency The frequency of the Pitch.
+	 * @constructor
+	 */
 	function Pitch( frequency ) {
 		this.frequency = frequency;
 		this.noteNum = Math.round( 1200 * (Math.log( frequency / 440 )/Math.log(2) )) / 100;
@@ -152,28 +159,79 @@ var PitchDetect = (function( requestAnimationFrame ) {
 	}
 
 	Pitch.prototype = {
+		/**
+		 * Return the frequency that was used to construct this `Pitch`.
+		 *
+		 * @returns {number} The frequency.
+		 */
 		getFrequency: function() {
 			return this.frequency;
 		},
+		/**
+		 * Returns the offset of this pitch as compared to the closest matching actual
+		 * note. This indecates the degree the frequence is 'off tune'.
+		 *
+		 * @returns {number} Offset of this pitch.
+		 */
 		getOffset: function() {
 			return this.offset;
 		},
+		/**
+		 * Returns the note of this frequency as a `float`, compared to a 440Hz 'A4'. This
+		 * numerical value is 0-based for 'A4' and increased by 1 for each half-note. So
+		 * 1 represents 'A#' or 'Bb', 2 is the 'B' and so on...
+		 *
+		 * (Have not yet tested how notes below A4 are being represented)
+		 *
+		 * @returns {float} Numerical value of the Pitch as a note.
+		 */
 		getNote: function() {
 			return this.noteNum;
 		},
+		/**
+		 * The rounded of numerical value of this Frequency as a 'note'. This should then
+		 * represent the note that is perceived.
+		 *
+		 * @returns {number} The whole numerical value of the Pitch as a note.
+		 */
 		toInt: function() {
 			return Math.round(this.noteNum);
 		},
+		/**
+		 * Human-readable presentation of the Pitch as a 'note'. Thus for 440Hz the value
+		 * returned would be 'A'.
+		 *
+		 * TODO Add numbers to indicate octave. So 440Hz should be 'A4'...
+		 *
+		 * @returns {String} Human-readable reprentation of the Pitch.
+		 */
 		toString: function() {
 			var i = this.toInt() % 12;
 			return noteStrings[i];
 		}
 	};
 
+	/**
+	 * Get the frequency of a note. This reverses the process by calculating the frequency
+	 * of a 0-based note.
+	 *
+	 * @param {number} The numerical value of a note, where 0 is 'A4' and 2 is 'B4', etc.
+	 * @returns {number} The frequency.
+	 */
 	Pitch.frequencyFromNoteNumber = function ( noteNum ) {
 		return 440 * Math.pow(2,( noteNum )/12);
 	};
 
+	/**
+	 * This is a pitch-detector. It parses frequency information using an AnalyserNode and
+	 * attempts to figure out what pitch is being sounded.
+	 *
+	 * TODO Let this class behave as if it is an AnalyserNode, but with extra methods for
+	 * pitch detection.
+	 *
+	 * @param {WebAudioContext} context This allows you to use this analyser in your own pipeline.
+	 * @constructor
+	 */
 	function PitchDetect( context ) {
 		this.context = context;
 		this.analyser = context.createAnalyser();
@@ -186,16 +244,42 @@ var PitchDetect = (function( requestAnimationFrame ) {
 
 	PitchDetect.prototype = {
 
+		/**
+		 * Get low-level access to the underlying `AnalyserNode`.
+		 *
+		 * @returns {AnalyserNode} The underlying node.
+		 */
 		getAnalyser: function( ) {
 			return this.analyser;
 		},
+		/**
+		 * Returns the last buffer that was analysed.
+		 *
+		 * @returns {Float32Array} The last buffer.
+		 */
 		getAnalysedBuffer: function() {
 			return this.buf;
 		},
+		/**
+		 * Parse the contents of the `AnalyserNode` and return a `Pitch` Object for further
+		 * handling.
+		 *
+		 * @param
+		 * @returns
+		 */
 		autoCorrelate: function() {
 			this.analyser.getFloatTimeDomainData( this.buf );
 			return new Pitch( autoCorrelate( this.buf, this.context.sampleRate ) );
 		},
+		/**
+		 * Connect an AudioNode to the AnalyserNode and the AnalyserNode to the
+		 * destination. This method currently cleans up any existing source node and also
+		 * connects to the `WebAudioContext.destination`. I would like to rework this to
+		 * make it act as a real `AudioNode` to be used in any WebAudioContext pipeline.
+		 *
+		 * @param {AudioNode} source The new source node.
+		 * @returns {AnalyserNode} The underlying `AnalyserNode`.
+		 */
 		connect: function( source ) {
 			var analyser = this.analyser;
 			if ( !!this.oldSource ) {
@@ -210,6 +294,7 @@ var PitchDetect = (function( requestAnimationFrame ) {
 
 	};
 
+	//AMD module trickery, this way people using AMD can require...
 	if ( typeof define === "function" && define.amd ) { //jshint ignore:line
 	    define( "pitchdetect", [], function() { //jshint ignore:line
 	        return PitchDetect;
