@@ -70,23 +70,54 @@ var PitchDetect = (function( requestAnimationFrame ) {
 	}
 	*/
 
-	var MIN_SAMPLES = 0;  // will be initialized when AudioContext is created.
+	/**
+	 * RMS is (to engineers anyway) a meaningful way of calculating the average of values
+	 * over a period of time. With audio, the signal value (amplitude) is squared,
+	 * averaged over a period of time, then the square root of the result is calculated.
+	 * The result is a value, that when squared, is related (proportional) to the
+	 * effective power of the signal.
+	 *
+	 * @param {Array} buf A buffer of meanungfull numerical data
+	 * @returns {float} The 'Root Mean square' of the provided numerical data.
+	 */
+	function getRMS( buf ) {
+		var rms = 0,
+			i
+		;
+
+		for (i = 0; i < buf.length; ++i) {
+			rms+= Math.pow( buf[i], 2 );
+		}
+
+		return Math.sqrt( rms / buf.length );
+	}
+
+	function getCorrelation( buf, offset ) {
+		var correlation = 0,
+			SIZE = buf.length,
+			MAX_SAMPLES = Math.floor(SIZE/2),
+			i
+		;
+
+		for (i=0; i<MAX_SAMPLES; i++) {
+			correlation += Math.abs((buf[i])-(buf[i+offset]));
+		}
+
+		correlation = 1 - (correlation/MAX_SAMPLES);
+	}
 
 	function autoCorrelate( buf, sampleRate ) {
-		var SIZE = buf.length;
-		var MAX_SAMPLES = Math.floor(SIZE/2);
-		var bestOffset = -1;
-		var bestCorrelation = 0;
-		var rms = 0;
-		var foundGoodCorrelation = false;
-		var correlations = new Array(MAX_SAMPLES);
-		var i;
+		var SIZE = buf.length,
+			MAX_SAMPLES = Math.floor(SIZE/2),
+			MIN_SAMPLES = 0,
+			bestOffset = -1,
+			bestCorrelation = 0,
+			rms = getRMS( buf ),
+			foundGoodCorrelation = false,
+			correlations = new Array(MAX_SAMPLES),
+			i
+		;
 
-		for (i=0;i<SIZE;i++) {
-			var val = buf[i];
-			rms += val*val;
-		}
-		rms = Math.sqrt(rms/SIZE);
 		if (rms<0.01) { // not enough signal
 			return -1;
 		}
