@@ -24,8 +24,6 @@ SOFTWARE.
 var PitchDetect = (function( requestAnimationFrame ) {
 	"use strict";
 
-	var buflen = 1024;
-
 	var noteStrings = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"];
 
 	// this is a float version of the algorithm below - but it's not currently used.
@@ -281,7 +279,7 @@ var PitchDetect = (function( requestAnimationFrame ) {
 		this.analyser.fftSize = 2048;
 		// corresponds to a 5kHz signal
 		//this.MAX_SIZE = Math.max(4,Math.floor( context.sampleRate/5000 ));
-		this.buf = new Float32Array( buflen );
+		this.buf = new Float32Array( this.analyser.fftSize / 2 );
 
 	}
 
