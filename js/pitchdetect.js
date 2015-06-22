@@ -77,7 +77,7 @@ var PitchDetect = (function( requestAnimationFrame ) {
 	 * The result is a value, that when squared, is related (proportional) to the
 	 * effective power of the signal.
 	 *
-	 * @param {Array} buf A buffer of meanungfull numerical data
+	 * @param {Array} buf A buffer of meaningful numerical data
 	 * @returns {float} The 'Root Mean square' of the provided numerical data.
 	 */
 	function getRMS( buf ) {
@@ -92,10 +92,17 @@ var PitchDetect = (function( requestAnimationFrame ) {
 		return Math.sqrt( rms / buf.length );
 	}
 
+	/**
+	 * I profess I can not with certainty explain how this correlation business works ;)
+	 * That's why I need to borrow somebody elses working pitch detector...
+	 *
+	 * @param {Array} buf A buffer of meaningful numerical data.
+	 * @param {number} offset The offset for calculating this correlation.
+	 * @returns {number} correlated value of the buffer for a certain offset.
+	 */
 	function getCorrelation( buf, offset ) {
 		var correlation = 0,
-			SIZE = buf.length,
-			MAX_SAMPLES = Math.floor(SIZE/2),
+			MAX_SAMPLES = Math.floor(buf.length/2),
 			i
 		;
 
@@ -104,8 +111,19 @@ var PitchDetect = (function( requestAnimationFrame ) {
 		}
 
 		correlation = 1 - (correlation/MAX_SAMPLES);
+
+		return correlation;
 	}
 
+	/**
+	 * Run through a buffer of audio-data and return the most likely leading frequency.
+	 * I can only barely follow the math in this, so please refer to the original author
+	 * for more info, if needed.
+	 *
+	 * @param {Array} buf A buffer of meaningful numerical data.
+	 * @param {number} sampleRate The sample rate of the provided buffer.
+	 * @returns {number} the frequency of the most likely leading frequency.
+	 */
 	function autoCorrelate( buf, sampleRate ) {
 		var SIZE = buf.length,
 			MAX_SAMPLES = Math.floor(SIZE/2),
@@ -124,12 +142,7 @@ var PitchDetect = (function( requestAnimationFrame ) {
 
 		var lastCorrelation=1;
 		for (var offset = MIN_SAMPLES; offset < MAX_SAMPLES; offset++) {
-			var correlation = 0;
-
-			for (i=0; i<MAX_SAMPLES; i++) {
-				correlation += Math.abs((buf[i])-(buf[i+offset]));
-			}
-			correlation = 1 - (correlation/MAX_SAMPLES);
+			var correlation = getCorrelation( buf, offset );
 			// store it, for the tweaking we need to do below.
 			correlations[offset] = correlation;
 			if ((correlation>0.9) && (correlation > lastCorrelation)) {
@@ -169,7 +182,6 @@ var PitchDetect = (function( requestAnimationFrame ) {
 			return sampleRate/bestOffset;
 		}
 		return -1;
-	//	var best_frequency = sampleRate/bestOffset;
 	}
 
 	/**
