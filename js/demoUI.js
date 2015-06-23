@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 /* global Pitch, console*/
-var pitchDetect = ( function( AudioContext, requestAnimationFrame ) {
+var pitchDetect = ( function( AudioContext, requestAnimationFrame, cancelAnimationFrame ) {
     "use strict";
 
     var DEBUGCANVAS = null,
@@ -120,11 +120,8 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame ) {
 	function gotStream(stream) {
 	    // Create an AudioNode from the stream.
 	    mediaStreamSource = audioContext.createMediaStreamSource(stream);
-		sourceNode = mediaStreamSource;
-		isLiveInput = true;
-
-	    // Connect it to the destination. But not to output...
-		mediaStreamSource.connect( analyser );
+        // Connect it to the destination. But not to output...
+		ui.connect( mediaStreamSource );
 	}
 
 	var rafID = null;
@@ -225,9 +222,10 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame ) {
 		        sourceNode = null;
 				isLiveInput = false;
 		        isPlaying = false;
-				if (!window.cancelAnimationFrame)
-					{window.cancelAnimationFrame = window.webkitCancelAnimationFrame;}
-		        window.cancelAnimationFrame( rafID );
+		        if ( !!rafID ) {
+                    cancelAnimationFrame( rafID );
+                    rafID = null;
+                }
 				this.setPlaying("Nothing");
 		        return true;
 		    }
@@ -238,6 +236,7 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame ) {
             source.connect( analyser );
             sourceNode = source;
             //analyser.connect( this.context.destination );
+            updatePitch();
             return analyser;
         },
 
@@ -259,7 +258,6 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame ) {
 			this.connect( source );
 		    source.start(0);
             isPlaying = true;
-		    updatePitch();
 			this.setPlaying("Oscillator");
 		},
 
@@ -267,19 +265,24 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame ) {
 			if ( this.stop() ) {
 				return false;
 			}
-		    getUserMedia(
-		    	{
-		            "audio": {
-		                "mandatory": {
-		                    "googEchoCancellation": "false",
-		                    "googAutoGainControl": "false",
-		                    "googNoiseSuppression": "false",
-		                    "googHighpassFilter": "false"
-		                },
-		                "optional": []
-		            },
-		        }, gotStream
-			);
+            if (mediaStreamSource === null ) {
+                getUserMedia(
+    		    	{
+    		            "audio": {
+    		                "mandatory": {
+    		                    "googEchoCancellation": "false",
+    		                    "googAutoGainControl": "false",
+    		                    "googNoiseSuppression": "false",
+    		                    "googHighpassFilter": "false"
+    		                },
+    		                "optional": []
+    		            },
+    		        }, gotStream
+    			);
+            } else {
+                this.connect( mediaStreamSource );
+            }
+            isLiveInput = true;
 			this.setPlaying("LiveInput");
 		},
 
@@ -295,7 +298,6 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame ) {
             this.connect( source );
 		    source.start( 0 );
 		    isPlaying = true;
-		    updatePitch();
 			this.setPlaying("Playback");
 		}
 
@@ -305,5 +307,8 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame ) {
 	window.webkitAudioContext,
     window.requestAnimationFrame ||
     window.webkitRequestAnimationFrame ||
-    window.mozRequestAnimationFrame
+    window.mozRequestAnimationFrame,
+    window.cancelAnimationFrame ||
+    window.webkitCancelAnimationFrame ||
+    window.mozCancelAnimationFrame
 ) );
