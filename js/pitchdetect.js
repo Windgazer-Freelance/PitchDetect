@@ -21,7 +21,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-var PitchDetect = (function( requestAnimationFrame ) {
+var Pitch = (function( requestAnimationFrame ) {
 	"use strict";
 
 	var noteStrings = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"];
@@ -187,10 +187,14 @@ var PitchDetect = (function( requestAnimationFrame ) {
 	 * pieces of information. Most useful information is most likely the `toString()`
 	 * method, which returns the pitch as a String.
 	 *
-	 * @param {number} frequency The frequency of the Pitch.
+	 * @param {AnalyserNode} analyser An analyser node.
 	 * @constructor
 	 */
-	function Pitch( frequency ) {
+	function Pitch( analyser ) {
+		this.buf = new Float32Array( analyser.fftSize / 2 );
+		analyser.getFloatTimeDomainData( this.buf );
+
+		var frequency = autoCorrelate( this.buf, analyser.context.sampleRate );
 		this.frequency = frequency;
 		this.noteNum = Math.round( 1200 * (Math.log( frequency / 440 )/Math.log(2) )) / 100;
 		this.baseFrequency = Pitch.frequencyFromNoteNumber( Math.round(this.noteNum) );
@@ -263,85 +267,13 @@ var PitchDetect = (function( requestAnimationFrame ) {
 		return 440 * Math.pow(2,( noteNum )/12);
 	};
 
-	/**
-	 * This is a pitch-detector. It parses frequency information using an AnalyserNode and
-	 * attempts to figure out what pitch is being sounded.
-	 *
-	 * TODO Let this class behave as if it is an AnalyserNode, but with extra methods for
-	 * pitch detection.
-	 *
-	 * @param {WebAudioContext} context This allows you to use this analyser in your own pipeline.
-	 * @constructor
-	 */
-	function PitchDetect( context ) {
-		this.context = context;
-		this.analyser = context.createAnalyser();
-		this.analyser.fftSize = 2048;
-		// corresponds to a 5kHz signal
-		//this.MAX_SIZE = Math.max(4,Math.floor( context.sampleRate/5000 ));
-		this.buf = new Float32Array( this.analyser.fftSize / 2 );
-
-	}
-
-	PitchDetect.prototype = {
-
-		/**
-		 * Get low-level access to the underlying `AnalyserNode`.
-		 *
-		 * @returns {AnalyserNode} The underlying node.
-		 */
-		getAnalyser: function( ) {
-			return this.analyser;
-		},
-		/**
-		 * Returns the last buffer that was analysed.
-		 *
-		 * @returns {Float32Array} The last buffer.
-		 */
-		getAnalysedBuffer: function() {
-			return this.buf;
-		},
-		/**
-		 * Parse the contents of the `AnalyserNode` and return a `Pitch` Object for further
-		 * handling.
-		 *
-		 * @param
-		 * @returns
-		 */
-		autoCorrelate: function() {
-			this.analyser.getFloatTimeDomainData( this.buf );
-			return new Pitch( autoCorrelate( this.buf, this.context.sampleRate ) );
-		},
-		/**
-		 * Connect an AudioNode to the AnalyserNode and the AnalyserNode to the
-		 * destination. This method currently cleans up any existing source node and also
-		 * connects to the `WebAudioContext.destination`. I would like to rework this to
-		 * make it act as a real `AudioNode` to be used in any WebAudioContext pipeline.
-		 *
-		 * @param {AudioNode} source The new source node.
-		 * @returns {AnalyserNode} The underlying `AnalyserNode`.
-		 */
-		connect: function( source ) {
-			var analyser = this.analyser;
-			if ( !!this.oldSource ) {
-				this.oldSource.disconnect();
-				this.oldSource = null;
-			}
-			source.connect( analyser );
-			this.oldSource = source;
-			//analyser.connect( this.context.destination );
-			return analyser;
-		}
-
-	};
-
 	//AMD module trickery, this way people using AMD can require...
 	if ( typeof define === "function" && define.amd ) { //jshint ignore:line
 	    define( "pitchdetect", [], function() { //jshint ignore:line
-	        return PitchDetect;
+	        return Pitch;
 	    });
 	}
-	return PitchDetect;
+	return Pitch;
 
 }(
 	window.requestAnimationFrame ||

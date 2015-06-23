@@ -21,13 +21,14 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-/* global PitchDetect, console*/
+/* global Pitch, console*/
 var pitchDetect = ( function( AudioContext, requestAnimationFrame ) {
     "use strict";
 
     var DEBUGCANVAS = null,
         audioContext = new AudioContext(),
-        detector = new PitchDetect( audioContext ),
+        analyser = audioContext.createAnalyser(),
+        pitch = new Pitch( analyser ),
         sourceNode = null,
         theBuffer = null,
         waveCanvas,
@@ -47,9 +48,8 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame ) {
 	}
 
     function redrawCanvas() {
-        var buf = detector.buf;
+        var buf = pitch.buf;
         if (ui.isPlaying()) {
-            buf = detector.getAnalysedBuffer();
             waveCanvas.clearRect(0,0,512,256);
             waveCanvas.strokeStyle = "red";
             waveCanvas.beginPath();
@@ -76,11 +76,10 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame ) {
     }
 
     function updatePitch( time ) {
-		var ac = detector.autoCorrelate( );
-		var pitch;
+		pitch = new Pitch( analyser );
 		// TODO: Paint confidence meter on canvasElem here.
 
-	 	if (ac.getFrequency() == -1) {
+	 	if (pitch.getFrequency() == -1) {
 			pitchElem.parentNode.parentNode.className = "vague";
 		 	pitchElem.innerText = "--";
 			noteElem.innerText = "-";
@@ -88,10 +87,9 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame ) {
 			detuneAmount.innerText = "--";
 	 	} else {
 			pitchElem.parentNode.parentNode.className = "confident";
-		 	pitch = ac.getFrequency();
-		 	pitchElem.innerText = Math.round( ac.getFrequency() ) ;
-			noteElem.innerHTML = ac.toString();
-			var detune = ac.getOffset();
+		 	pitchElem.innerText = Math.round( pitch.getFrequency() ) ;
+			noteElem.innerHTML = pitch.toString();
+			var detune = pitch.getOffset();
 			if (detune === 0 ) {
 				detuneElem.className = "";
 				detuneAmount.innerHTML = "--";
@@ -126,7 +124,7 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame ) {
 		isLiveInput = true;
 
 	    // Connect it to the destination. But not to output...
-		detector.connect( mediaStreamSource ).disconnect();
+		mediaStreamSource.connect( analyser );
 	}
 
 	var rafID = null;
@@ -181,7 +179,7 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame ) {
             try {
                 var reader = new FileReader();
                 reader.onload = function(event) {
-                    detector.decode(event.target.result);
+                    ui.decode(event.target.result);
                 };
                 reader.onerror = function(event) {
                     window.alert("Error: " + reader.error);
@@ -225,7 +223,6 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame ) {
 				}
 				sourceNode.disconnect();
 		        sourceNode = null;
-				detector.oldSource = null;
 				isLiveInput = false;
 		        isPlaying = false;
 				if (!window.cancelAnimationFrame)
@@ -237,6 +234,13 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame ) {
 			return false;
 		},
 
+        connect: function( source ) {
+            source.connect( analyser );
+            sourceNode = source;
+            //analyser.connect( this.context.destination );
+            return analyser;
+        },
+
 		setPlaying: function( sourceName ) {
 			document.body.className = document.body.className.replace(/isPlaying\w+/, "");
 			document.body.className += " isPlaying" + sourceName;
@@ -247,13 +251,13 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame ) {
 		},
 
         toggleOscillator: function () {
+            var source = audioContext.createOscillator();
 			if ( this.stop() ) {
 				return false;
 			}
-		    sourceNode = audioContext.createOscillator();
 
-			detector.connect( sourceNode );
-		    sourceNode.start(0);
+			this.connect( source );
+		    source.start(0);
             isPlaying = true;
 		    updatePitch();
 			this.setPlaying("Oscillator");
@@ -284,12 +288,12 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame ) {
 				return false;
 			}
 
-		    sourceNode = audioContext.createBufferSource();
-		    sourceNode.buffer = theBuffer;
-		    sourceNode.loop = true;
+		    var source = audioContext.createBufferSource();
+		    source.buffer = theBuffer;
+		    source.loop = true;
 
-            detector.connect( sourceNode );
-		    sourceNode.start( 0 );
+            this.connect( source );
+		    source.start( 0 );
 		    isPlaying = true;
 		    updatePitch();
 			this.setPlaying("Playback");
