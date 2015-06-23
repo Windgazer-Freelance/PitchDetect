@@ -28,6 +28,12 @@ div.vague { color: lightgrey; }
 <script src="js/demoUI.js"></script>
 </head>
 <body>
+    <h1>Test Pitch Detection page</h1>
+    <p>
+        To test pitch detection with your own audio file, just drag and drop it on the
+        pitch detector and after giving the browser a few seconds to load it, click on
+        'use demo audio', instead of the default whistling you'll get your custom audio.
+    </p>
 <button onclick="pitchDetect.togglePlayback()">use demo audio</button>
 <button onclick="pitchDetect.toggleLiveInput()">use live input</button>
 <button onclick="pitchDetect.toggleOscillator()">use oscillator</button>
@@ -40,7 +46,7 @@ div.vague { color: lightgrey; }
 <div id="detune"><span id="detune_amt">--</span><span id="flat">cents &#9837;</span><span id="sharp">cents &#9839;</span></div>
 </div>
 
-<canvas id="waveform" width="512" height="256"></canvas>
+<!-- <canvas id="waveform" width="512" height="256"></canvas> -->
 <a href="https://github.com/cwilso/pitchdetect" style="position: absolute; z-index:2; top: 0; right: 0; border: 0;"><img src="img/forkme.png" alt="Fork me on GitHub"></a>
 
 <script type="text/javascript">

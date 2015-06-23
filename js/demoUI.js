@@ -120,6 +120,7 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame, cancelAnimati
 	function gotStream(stream) {
 	    // Create an AudioNode from the stream.
 	    mediaStreamSource = audioContext.createMediaStreamSource(stream);
+        analyser.disconnect();
         // Connect it to the destination. But not to output...
 		ui.connect( mediaStreamSource );
 	}
@@ -142,6 +143,7 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame, cancelAnimati
             i
         ;
 
+        analyser.connect( audioContext.destination );
         //Get UI elements
         canvasElem = document.getElementById( "output" );
 		pitchElem = document.getElementById( "pitch" );
@@ -174,8 +176,10 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame, cancelAnimati
             console.log("Attempting to stop browser from navigating...");
 
             try {
+                ui.stop();
                 var reader = new FileReader();
                 reader.onload = function(event) {
+                    console.log("decoding dropped audio!");
                     ui.decode(event.target.result);
                 };
                 reader.onerror = function(event) {
@@ -220,6 +224,7 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame, cancelAnimati
 				}
 				sourceNode.disconnect();
 		        sourceNode = null;
+                analyser.connect( audioContext.destination ); //safe moment to reconnect
 				isLiveInput = false;
 		        isPlaying = false;
 		        if ( !!rafID ) {
@@ -281,6 +286,7 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame, cancelAnimati
     		        }, gotStream
     			);
             } else {
+                analyser.disconnect();
                 this.connect( mediaStreamSource );
             }
             isLiveInput = true;

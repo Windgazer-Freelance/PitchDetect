@@ -21,7 +21,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-var Pitch = (function( requestAnimationFrame ) {
+var Pitch = (function( ) {
 	"use strict";
 
 	var noteStrings = ["A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#"];
@@ -187,6 +187,10 @@ var Pitch = (function( requestAnimationFrame ) {
 	 * pieces of information. Most useful information is most likely the `toString()`
 	 * method, which returns the pitch as a String.
 	 *
+	 * TODO Create alternate constructor parameters `buffer, fftSize, sampleRate`, making
+	 * the pitch agnostic about where it's data comes from... Of course make it still
+	 * alternatively accept analyser as single parameter.
+	 *
 	 * @param {AnalyserNode} analyser An analyser node.
 	 * @constructor
 	 */
@@ -276,8 +280,4 @@ var Pitch = (function( requestAnimationFrame ) {
 	}
 	return Pitch;
 
-}(
-	window.requestAnimationFrame ||
-    window.webkitRequestAnimationFrame ||
-    window.mozRequestAnimationFrame
-));
+}( ));
