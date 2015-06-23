@@ -251,6 +251,7 @@ var pitchDetect = ( function( AudioContext, requestAnimationFrame, cancelAnimati
 
         toggleOscillator: function () {
             var source = audioContext.createOscillator();
+            //source.frequency.value = 110.00; //A2
 			if ( this.stop() ) {
 				return false;
 			}

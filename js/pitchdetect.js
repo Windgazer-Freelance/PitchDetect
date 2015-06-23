@@ -226,8 +226,6 @@ var Pitch = (function( requestAnimationFrame ) {
 		 * numerical value is 0-based for 'A4' and increased by 1 for each half-note. So
 		 * 1 represents 'A#' or 'Bb', 2 is the 'B' and so on...
 		 *
-		 * (Have not yet tested how notes below A4 are being represented)
-		 *
 		 * @returns {float} Numerical value of the Pitch as a note.
 		 */
 		getNote: function() {
@@ -246,13 +244,16 @@ var Pitch = (function( requestAnimationFrame ) {
 		 * Human-readable presentation of the Pitch as a 'note'. Thus for 440Hz the value
 		 * returned would be 'A'.
 		 *
-		 * TODO Add numbers to indicate octave. So 440Hz should be 'A4'...
-		 *
 		 * @returns {String} Human-readable reprentation of the Pitch.
 		 */
 		toString: function() {
-			var i = this.toInt() % 12;
-			return noteStrings[i];
+			//Adding 48, for number of possible half notes below A4...
+			var noteZeroBased = this.toInt() + 48,
+				i = noteZeroBased % 12,
+				oct = Math.floor(noteZeroBased / 12),
+				o = noteStrings[i].replace( /([A-G])/, "$1" + oct )
+			;
+			return o;
 		}
 	};
 
